@@ -2,16 +2,23 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import Logo from '/teachat.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import AxiosToastError from '../utils/AxiosToastError';
+import Axios from '../utils/Axios';
+import summaryAPI from '../common/summaryAPI';
+import Button from '@mui/material/Button';
+import { CircularProgress } from '@mui/material';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState({
     username: '',
     email: '',
     password: '',
     confirmpassword: '',
   });
+  const [ loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,6 +38,34 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     handleValidation();
+    setLoading(true)
+
+    setTimeout(async () => {
+      try {
+        const response = await Axios({
+          ...summaryAPI.register,
+          data: data
+        })
+  
+        if (response.data.error) {
+          toast.error(response.data.message, toastOptions)
+        }
+  
+        if (response.data.success) {
+          toast.success(response.data.message, toastOptions);
+          setData({
+            username: '',
+            email: '',
+            password: '',
+            confirmpassword: '',
+          });
+          navigate('/login')
+        }
+  
+      } catch (error) {
+        AxiosToastError(error)
+      }
+    },3000)
   };
 
   const handleValidation = () => {
@@ -52,6 +87,7 @@ const Register = () => {
     <Wrapper>
       <InnerWrapper>
         <form onSubmit={handleSubmit}>
+
           <div className="brand">
             <img src={Logo} alt="Logo" />
             <h1>Teachat</h1>
@@ -93,7 +129,15 @@ const Register = () => {
             required
           />
 
-          <button type="submit">CREATE ACCOUNT</button>
+          <Button
+            type='submit'
+            variant='contained'
+            color='primary'
+            disabled ={loading}
+          >
+            {loading? <CircularProgress size={16} color='white'/> : 'CREATE ACCOUNT'}
+
+          </Button>
 
           <span>Already have an account? <Link to={'/login'}>Login</Link> </span>
         </form>

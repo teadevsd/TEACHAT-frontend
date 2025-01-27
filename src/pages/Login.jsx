@@ -1,74 +1,125 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
-import Logo from '/teachat.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { Button, CircularProgress } from '@mui/material';
+import AxiosToastError from '../utils/AxiosToastError';
+import Axios from '../utils/Axios';
+import summaryAPI from '../common/summaryAPI';
 
 const Login = () => {
-  const [data, setData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmpassword: '',
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setData({
-      ...data,
-      [name]: value, 
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState({
+        identifier: '', // Now a generic identifier
+        password: '',
     });
-  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const toastOptions = {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+    };
 
-    try {
-      const response = await axios.post('/api/register', data); // Example API endpoint
-      console.log(response.data); // Handle success
-    } catch (error) {
-      console.error('Error during registration:', error); // Handle error
-    }
-  };
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setData({
+            ...data,
+            [name]: value,
+        });
+    };
 
-  return (
-    <Wrapper>
-      <InnerWrapper>
-        <form onSubmit={handleSubmit}>
-          <div className="brand">
-            <img src={Logo} alt="Logo" />
-            <h1>Teachat</h1>
-          </div>
+    useEffect(() => {
+      if(localStorage.getItem('accessToken')) 
+        navigate('/');
+    }, [])
 
-         
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
 
-          <input
-            type="email"
-            placeholder="Email"
-            name="email"
-            value={data.email}
-            onChange={handleChange}
-            required
-          />
+        try {
+            const accessToken = localStorage.getItem('accessToken') || '';
+            const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 
-          <input
-            type="password"
-            placeholder="Password"
-            name="password"
-            value={data.password}
-            onChange={handleChange}
-          />
+            const response = await Axios({
+                ...summaryAPI.login,
+                data,
+                withCredentials: true,
+                headers,
+            });
 
-        
+            if (response.data.error) {
+                toast.error(response.data.message, toastOptions);
+            } else if (response.data.success) {
+                const { accessToken } = response.data.data;
 
-          <button type="submit">LOGIN</button>
+                // Store token
+                localStorage.setItem('accessToken', accessToken);
+                document.cookie = `accessToken=${accessToken}; path=/; SameSite=Lax`;
 
-          <span>Don't have an account? <Link to={'/register'}>Sign up</Link> </span>
-        </form>
-      </InnerWrapper>
-    </Wrapper>
-  );
+                toast.success(response.data.message, toastOptions);
+                setTimeout(() => {
+                    navigate('/chat'); // Navigate after a short delay
+                }, 2000); // Allow the success message to display
+            }
+        } catch (error) {
+            AxiosToastError(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Wrapper>
+            <InnerWrapper>
+                <form onSubmit={handleSubmit}>
+                    <div className="brand">
+                        <h1>Teachat</h1>
+                    </div>
+
+                    <input
+                        type="text" // Accept both username and email
+                        placeholder="Username or Email"
+                        name="identifier"
+                        value={data.identifier}
+                        onChange={handleChange}
+                        required
+                    />
+
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        name="password"
+                        value={data.password}
+                        onChange={handleChange}
+                        required
+                    />
+
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        color="warning"
+                        disabled={loading}
+                    >
+                        {loading ? <CircularProgress size={20} color="inherit" /> : 'LOGIN'}
+                    </Button>
+
+                    <span>
+                        Don't have an account? <Link to="/register">Sign up</Link>
+                    </span>
+                </form>
+            </InnerWrapper>
+            <ToastContainer />
+        </Wrapper>
+    );
 };
+
 
 export default Login;
 
@@ -110,15 +161,14 @@ const InnerWrapper = styled.div`
     box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 10px;
 
     span {
-        font-size: 14px;
-        font-weight: bold;
-        margin-top: 10px;
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 10px;
 
-        a {
-            text-decoration: none;
-            color: red;
-
-        }
+      a {
+        text-decoration: none;
+        color: red;
+      }
     }
 
     input {
@@ -147,7 +197,6 @@ const InnerWrapper = styled.div`
       font-weight: bold;
       cursor: pointer;
       transition: background-color 0.3s ease;
-
     }
 
     button:hover {
